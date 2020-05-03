@@ -88,7 +88,7 @@ class Role(db.Model):
     
 class Space(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
-    store_name = db.Column(db.String(100))
+    store_name = db.Column(db.String(100),unique=True)
     description = db.Column(db.Text)
     telephone = db.Column(db.String(50))
     email = db.Column(db.String(50),unique=True)
@@ -158,3 +158,11 @@ class UserSchema(ma.ModelSchema):
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
+
+class SpaceSchema(ma.ModelSchema):
+    class Meta:
+        model = Space
+        fields = ('id','email','username','userId','telephone','member_since','lastLogin','role_id')
+
+space_schema = SpaceSchema()
+spaces_schema = SpaceSchema(many=True)

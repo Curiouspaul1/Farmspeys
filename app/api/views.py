@@ -1,12 +1,15 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
-from ..models import User,Space,Space_cat,Product,Product_cat,user_schema,users_schema
+from ..models import User,Space,space_schema,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
 from app import bcrypt,db,ma
 from uuid import UUID,uuid4
 import datetime as d
 import jwt, json
+
+
+# ================================== User Handlers =================================== #
 
 @api.route("/createaccount",methods=['POST'])
 def register_user():
@@ -56,3 +59,35 @@ def getuser(publicId):
 def getusers():
     users = User.query.all()
     return jsonify(users_schema.dump(users))
+
+
+# ================================== Space Handlers =================================== #
+
+@api.route('/newspace',methods=['POST'])
+def newspace():
+    data = request.get_json(force=True)
+    new_space = Space(store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
+    db.session.add(new_space)
+    if not IntegrityError:
+        db.session.commit()
+    elif IntegrityError:
+        db.session.rollback()
+        return jsonify({'error':'Store Name is already taken'}),401
+    return jsonify({'msg':'New store created successfully!'}),200
+
+@api.route('/getspace/<spaceId>')
+def getspace(spaceId):
+    result = Space.query.filter_by(id=spaceId).first()
+    if not result:
+        return jsonify({'error':'No such store found'}),401
+    return space_schema.jsonify(result),200
+
+@api.route('/getspaces')
+def getspace():
+    result = Space.query.all()
+    return jsonify(spaces_schema.dump(result)),200
+
+@api.route('/addproduct')
+def addproducts(current_user):
+    data = request.get_json()
+    
