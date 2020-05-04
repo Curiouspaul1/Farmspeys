@@ -1,15 +1,38 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
-from ..models import User,Space,space_schema,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
+from ..models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
 from app import bcrypt,db,ma
 from uuid import UUID,uuid4
 import datetime as d
 import jwt, json
-
+from functools import wraps
 
 # ================================== User Handlers =================================== #
+
+# authorization handler
+def login_required(f):
+    @wraps(f)
+    def endpoint(*args,**kwargs):
+        token = None
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+            if not token:
+                return make_response(jsonify({'error':'Token is missing'})),401
+            #try:
+            data = jwt.decode(token,current_app.config['SECRET_KEY'])
+            #except:
+            #return make_response(jsonify({'error':'An error occurred while trying to decode token'})),500
+            
+            # fetch logged in user
+            current_user = User.query.filter_by(userId=data['publicId']).first()
+            
+            return f(current_user,*args,**kwargs)
+        else:
+            return make_response(jsonify({'error':'Token header not found'})),401
+    return endpoint
+
 
 @api.route("/createaccount",methods=['POST'])
 def register_user():
@@ -48,7 +71,8 @@ def login():
         return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
 
 @api.route('/getuser/<publicId>')
-def getuser(publicId):
+@login_required
+def getuser(current_user,publicId):
     user = User.query.filter_by(userId=publicId).first()
     if not user:
         return jsonify({'error':'No such user found'}),401
@@ -56,23 +80,37 @@ def getuser(publicId):
     return user_schema.jsonify(user)
 
 @api.route('/getusers')
+@login_required
 def getusers():
     users = User.query.all()
     return jsonify(users_schema.dump(users))
+
+@api.route('/promoteuser',methods=['PUT'])
+@login_required
+def promote(current_user):
+    user_role = current_user.role
+    user_role.add_permission(Permission.SELL) # adds seller permission
+    db.session.commit()
+
+    return jsonify({'msg':'Successfully promoted user to seller'}),200
 
 
 # ================================== Space Handlers =================================== #
 
 @api.route('/newspace',methods=['POST'])
-def newspace():
+@login_required
+def newspace(current_user):
+    if not current_user.role.has_permission(Permission.SELL):
+        return jsonify({'error':'You don\'t have permission to perform such action'}),401
     data = request.get_json(force=True)
     new_space = Space(store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
     db.session.add(new_space)
-    if not IntegrityError:
+    try:
+        new_space.farmer = current_user
         db.session.commit()
-    elif IntegrityError:
-        db.session.rollback()
-        return jsonify({'error':'Store Name is already taken'}),401
+    #except IntegrityError:
+    #    db.session.rollback()
+    #    return jsonify({'error':'Store Name is already taken'}),401
     return jsonify({'msg':'New store created successfully!'}),200
 
 @api.route('/getspace/<spaceId>')
@@ -83,11 +121,21 @@ def getspace(spaceId):
     return space_schema.jsonify(result),200
 
 @api.route('/getspaces')
-def getspace():
+def getspaces():
     result = Space.query.all()
     return jsonify(spaces_schema.dump(result)),200
 
-@api.route('/addproduct')
+@api.route('/addproduct',methods=['POST'])
 def addproducts(current_user):
     data = request.get_json()
-    
+    new_product = Product(name=data['productName'],description=data['productDesc'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
+    db.session.add(new_product)
+    # fetch store 
+    current_space = current_user.space
+    new_product.space = current_space
+    db.session.commit()
+    return jsonify({'msg':f'Added {new_product.name} successfully'}),200
+
+#@api.route('/delete_product/<product_id>')
+#def delete_product(current_user,product_id)
+

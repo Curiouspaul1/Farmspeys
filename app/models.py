@@ -14,7 +14,7 @@ class User(db.Model):
     lastLogin = db.Column(db.DateTime())
     cart = db.relationship('Cart',backref='buyer',uselist=False)
     reviews = db.relationship('Review',backref='customer')
-    spaces = db.relationship('Space',backref='farmer')
+    space = db.relationship('Space',backref='farmer',uselist=False)
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     orders = db.relationship('Order',backref='customer')
 
