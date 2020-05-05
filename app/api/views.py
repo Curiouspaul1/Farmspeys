@@ -56,7 +56,7 @@ def register_user():
 def login():
     auth = request.authorization
 
-    if not auth or not auth.username:
+    if not auth or not auth.username:   
         return jsonify({'error':'Invalid auth details'}),401
     
     user = User.query.filter_by(username=auth.username).first() or User.query.filter_by(email=auth.username).first()
@@ -108,9 +108,9 @@ def newspace(current_user):
     try:
         new_space.farmer = current_user
         db.session.commit()
-    #except IntegrityError:
-    #    db.session.rollback()
-    #    return jsonify({'error':'Store Name is already taken'}),401
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error':'Store Name is already taken'}),401
     return jsonify({'msg':'New store created successfully!'}),200
 
 @api.route('/getspace/<spaceId>')
@@ -136,6 +136,11 @@ def addproducts(current_user):
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
+@api.route('getallproducts', methods=['GET'])
+def getallproducts():
+    products = Product.query.all();
+    return jsonify(product_schema.dump(products)), 200
+    
 #@api.route('/delete_product/<product_id>')
 #def delete_product(current_user,product_id)
 
