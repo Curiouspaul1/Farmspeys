@@ -166,3 +166,11 @@ class SpaceSchema(ma.ModelSchema):
 
 space_schema = SpaceSchema()
 spaces_schema = SpaceSchema(many=True)
+
+class ProductSchema(ma.ModelSchema):
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'description', 'price', 'images', 'Instock', 'discount', 'date_created', 'space_id')
+
+product_schema = ProductSchema()
+products_schema  = ProductSchema(many=True)
