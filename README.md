@@ -1,2 +1,2 @@
 # Farmspeys
-A restful agro-based ecommerce software
+The backend of Farmspeys - an agro-based ecommerce software.
