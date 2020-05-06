@@ -70,7 +70,7 @@ def login():
     else:
         return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
 
-@api.route('/getuser/<publicId>')
+@api.route('/getuser/<publicId>')   
 @login_required
 def getuser(current_user,publicId):
     user = User.query.filter_by(userId=publicId).first()
@@ -136,10 +136,29 @@ def addproducts(current_user):
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
-@api.route('getallproducts', methods=['GET'])
+@api.route('/getallproducts', methods=['GET'])
 def getallproducts():
     products = Product.query.all();
     return jsonify(product_schema.dump(products)), 200
+
+@api.route('/updateproduct', methods=['POST'])
+def updateproduct(current_user):
+    data = request.get_json(force=True) # route accepts json
+    product = Product.query.filter_by(productID=product_id).first()
+
+    product.name = data['productName']
+    product.description = data['productDesc']
+    product.price = data['price']
+    product.images = data['images']
+    product.Instock = data['available_stock']
+    product.discount = data['discount']
+    product.date_created = d.datetime.utcnow()
+
+    current_space = current_user.space
+    product.space = current_space
+    db.session.commit()
+    
+    return({'msg':f'Updated products successfully'}), 200
     
 #@api.route('/delete_product/<product_id>')
 #def delete_product(current_user,product_id)
