@@ -108,9 +108,9 @@ def newspace(current_user):
     try:
         new_space.farmer = current_user
         db.session.commit()
-    #except IntegrityError:
-    #    db.session.rollback()
-    #    return jsonify({'error':'Store Name is already taken'}),401
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error':'Store Name is already taken'}),401
     return jsonify({'msg':'New store created successfully!'}),200
 
 @api.route('/getspace/<spaceId>')
