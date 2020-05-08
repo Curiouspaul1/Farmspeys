@@ -38,8 +38,8 @@ def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])
     new_user = User(name=data['name'],password=phash,member_since=d.datetime.utcnow(),userId=str(uuid4()))
-    if new_user.role == None:
-        new_user.role = Role.query.filter_by(default=True).first()
+    #if new_user.role == None:
+    #    new_user.role = Role.query.filter_by(default=True).first()
     db.session.add(new_user)
 
     if emailcheck(data['email']):
@@ -99,7 +99,7 @@ def getuser(current_user,publicId):
 
 @api.route('/getusers')
 @login_required
-def getusers():
+def getusers(current_user):
     users = User.query.all()
     return jsonify(users_schema.dump(users))
 
@@ -145,9 +145,10 @@ def getspaces():
     return jsonify(spaces_schema.dump(result)),200
 
 @api.route('/addproduct',methods=['POST'])
+@login_required
 def addproducts(current_user):
     data = request.get_json()
-    new_product = Product(name=data['productName'],description=data['productDesc'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
+    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
     db.session.add(new_product)
     # fetch store 
     current_space = current_user.space

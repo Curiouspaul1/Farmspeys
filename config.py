@@ -19,7 +19,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG=True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_URI') or f"sqlite:///{basedir}/fdevdb.sqlite"
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_URI') or f"sqlite:///{basedir}/fdevdb_.sqlite"
     FLASKY_ADMIN = os.environ.get('FLASK_ADMIN')
 
 class TestingConfig(Config):

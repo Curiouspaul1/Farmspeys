@@ -108,6 +108,7 @@ class Product(db.Model):
     price = db.Column(db.Float)
     images = db.Column(db.PickleType())
     Instock = db.Column(db.Integer,default=0)
+    sale_unit = db.Column(db.String(50))
     discount = db.Column(db.Float)
     date_created = db.Column(db.DateTime())
     reviews = db.relationship('Review',backref='product')
