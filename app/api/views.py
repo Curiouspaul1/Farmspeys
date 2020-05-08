@@ -33,24 +33,42 @@ def login_required(f):
             return make_response(jsonify({'error':'Token header not found'})),401
     return endpoint
 
-
 @api.route("/createaccount",methods=['POST'])
 def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])
     new_user = User(name=data['name'],password=phash,member_since=d.datetime.utcnow(),userId=str(uuid4()))
+    if new_user.role == None:
+        new_user.role = Role.query.filter_by(default=True).first()
     db.session.add(new_user)
+
     if emailcheck(data['email']):
         try:
             new_user.email = data['email']
-            new_user.username = data['username']
-            new_user.telephone = data['telephone']
-            db.session.commit()
-        except IntegrityError as e:
-            return jsonify({'error':'User with email or username or telephone already exists'}),401
+            db.session.flush(objects=[new_user])
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'msg':'Email already exists'}),401
     else:
-        return jsonify({'error':'Please enter in a valid email address'}),401
-    return jsonify({'msg':'Registeration successful'})
+        return jsonify({'msg':'Please enter a valid email address'})
+    
+    try:
+        new_user.username = data['username']
+        db.session.flush(objects=[new_user])
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'msg':'username already exists'}),401
+    
+    try:
+        new_user.telephone = data['telephone']
+        db.session.flush(objects=[new_user])
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'msg':'Telephone already exists'}),401
+
+    return jsonify({'msg':'registration successful'}),200
+            
 
 @api.route('/login',methods=['GET'])
 def login():
@@ -107,6 +125,7 @@ def newspace(current_user):
     db.session.add(new_space)
     try:
         new_space.farmer = current_user
+        db.session.flush()
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
