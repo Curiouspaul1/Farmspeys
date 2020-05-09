@@ -35,7 +35,7 @@ def login_required(f):
     return endpoint
 
 @api.route("/createaccount",methods=['POST'])
-@cross_origin()
+#@cross_origin()
 def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])
