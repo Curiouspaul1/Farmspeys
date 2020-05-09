@@ -1,9 +1,10 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
+from flask_cors import cross_origin
 from ..models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
-from app import bcrypt,db,ma
+from app import bcrypt,db,ma,cors
 from uuid import UUID,uuid4
 import datetime as d
 import jwt, json
@@ -34,6 +35,7 @@ def login_required(f):
     return endpoint
 
 @api.route("/createaccount",methods=['POST'])
+@cross_origin()
 def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])

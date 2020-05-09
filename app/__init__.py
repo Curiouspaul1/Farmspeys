@@ -1,5 +1,5 @@
 from flask import Flask
-from .extensions import db,ma,mail,bcrypt
+from .extensions import db,ma,mail,bcrypt,cors
 from config import config
 
 
@@ -13,6 +13,7 @@ def __call__(config_name):
     ma.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
+    cors.init_app(app)
 
     from app.api import api as api_blueprint
     app.register_blueprint(api_blueprint,url_prefix='/api')
