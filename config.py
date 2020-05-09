@@ -25,10 +25,11 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_URI') or f"sqlite:///{basedir}/ftest.sqlite"
-
+    FLASKY_ADMIN = os.environ.get('FLASK_ADMIN')
 class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     FLASK_ENV=os.getenv('ENV')
+    FLASKY_ADMIN = os.environ.get('FLASK_ADMIN')
 
 config = {
     'development':DevelopmentConfig,

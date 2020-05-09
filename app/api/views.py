@@ -1,7 +1,7 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
 from flask_cors import cross_origin
-from ..models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
+from models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
 from app import bcrypt,db,ma,cors
