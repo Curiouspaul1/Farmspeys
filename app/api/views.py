@@ -50,16 +50,16 @@ def register_user():
             db.session.flush(objects=[new_user])
         except IntegrityError:
             db.session.rollback()
-            return jsonify({'msg':'Email already exists'}),401
+            return make_response(jsonify({'msg':'Email already exists'}),401)
     else:
-        return jsonify({'msg':'Please enter a valid email address'})
+        return make_response(jsonify({'msg':'Please enter a valid email address'}),401)
     
     try:
         new_user.username = data['username']
         db.session.flush(objects=[new_user])
     except IntegrityError:
         db.session.rollback()
-        return jsonify({'msg':'username already exists'}),401
+        return make_response(jsonify({'msg':'username already exists'}),401)
     
     try:
         new_user.telephone = data['telephone']
@@ -67,9 +67,9 @@ def register_user():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({'msg':'Telephone already exists'}),401
+        return make_response(jsonify({'msg':'Telephone already exists'}),401)
 
-    return jsonify({'msg':'registration successful'}),200
+    return make_response(jsonify({'msg':'registration successful'}),200)
             
 
 @api.route('/login',methods=['GET'])
