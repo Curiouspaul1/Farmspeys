@@ -1,9 +1,10 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
-from ..models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
+from flask_cors import cross_origin
+from models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
-from app import bcrypt,db,ma
+from app import bcrypt,db,ma,cors
 from uuid import UUID,uuid4
 import datetime as d
 import jwt, json
@@ -33,24 +34,43 @@ def login_required(f):
             return make_response(jsonify({'error':'Token header not found'})),401
     return endpoint
 
-
 @api.route("/createaccount",methods=['POST'])
+#@cross_origin()
 def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])
     new_user = User(name=data['name'],password=phash,member_since=d.datetime.utcnow(),userId=str(uuid4()))
+    #if new_user.role == None:
+    #    new_user.role = Role.query.filter_by(default=True).first()
     db.session.add(new_user)
+
     if emailcheck(data['email']):
         try:
             new_user.email = data['email']
-            new_user.username = data['username']
-            new_user.telephone = data['telephone']
-            db.session.commit()
-        except IntegrityError as e:
-            return jsonify({'error':'User with email or username or telephone already exists'}),401
+            db.session.flush(objects=[new_user])
+        except IntegrityError:
+            db.session.rollback()
+            return make_response(jsonify({'msg':'Email already exists'}),401)
     else:
-        return jsonify({'error':'Please enter in a valid email address'}),401
-    return jsonify({'msg':'Registeration successful'})
+        return make_response(jsonify({'msg':'Please enter a valid email address'}),401)
+    
+    try:
+        new_user.username = data['username']
+        db.session.flush(objects=[new_user])
+    except IntegrityError:
+        db.session.rollback()
+        return make_response(jsonify({'msg':'username already exists'}),401)
+    
+    try:
+        new_user.telephone = data['telephone']
+        db.session.flush(objects=[new_user])
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return make_response(jsonify({'msg':'Telephone already exists'}),401)
+
+    return make_response(jsonify({'msg':'registration successful'}),200)
+            
 
 @api.route('/login',methods=['GET'])
 def login():
@@ -81,7 +101,7 @@ def getuser(current_user,publicId):
 
 @api.route('/getusers')
 @login_required
-def getusers():
+def getusers(current_user):
     users = User.query.all()
     return jsonify(users_schema.dump(users))
 
@@ -107,10 +127,11 @@ def newspace(current_user):
     db.session.add(new_space)
     try:
         new_space.farmer = current_user
+        db.session.flush()
         db.session.commit()
-    #except IntegrityError:
-    #    db.session.rollback()
-    #    return jsonify({'error':'Store Name is already taken'}),401
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error':'Store Name is already taken'}),401
     return jsonify({'msg':'New store created successfully!'}),200
 
 @api.route('/getspace/<spaceId>')
@@ -126,9 +147,10 @@ def getspaces():
     return jsonify(spaces_schema.dump(result)),200
 
 @api.route('/addproduct',methods=['POST'])
+@login_required
 def addproducts(current_user):
     data = request.get_json()
-    new_product = Product(name=data['productName'],description=data['productDesc'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
+    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
     db.session.add(new_product)
     # fetch store 
     current_space = current_user.space

@@ -1,7 +1,7 @@
 from app import __call__,db
 from app.extensions import migrate
 from flask import jsonify
-from app.models import User,Cart,Role,Space,Product,Product_cat,Space_cat,users_schema,user_schema
+from models import User,Cart,Role,Space,Product,Product_cat,Space_cat,users_schema,user_schema
 import os
 
 app = __call__(os.getenv("FLASK_CONFIG") or "default")
