@@ -103,6 +103,7 @@ class Space(db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
+    productID = db.column(db.String(50))
     name = db.Column(db.String(100))
     description = db.Column(db.Text)
     price = db.Column(db.Float)
@@ -167,3 +168,11 @@ class SpaceSchema(ma.ModelSchema):
 
 space_schema = SpaceSchema()
 spaces_schema = SpaceSchema(many=True)
+
+class ProductSchema(ma.ModelSchema):
+    class Meta:
+        model = Product
+        fields = ('id', 'productID', 'name', 'description', 'price', 'images', 'Instock', 'discount', 'date_created', 'space_id')
+
+product_schema = ProductSchema()
+products_schema  = ProductSchema(many=True)
