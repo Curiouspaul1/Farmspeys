@@ -9,7 +9,7 @@ class User(db.Model):
     username = db.Column(db.String(100),unique=True)
     telephone = db.Column(db.String(50),unique=True)
     email = db.Column(db.String(50),unique=True)
-    password = db.Column(db.String(50))
+    password = db.Column(db.String(200))
     member_since = db.Column(db.DateTime())
     lastLogin = db.Column(db.DateTime())
     cart = db.relationship('Cart',backref='buyer',uselist=False)
