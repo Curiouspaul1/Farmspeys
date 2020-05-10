@@ -103,7 +103,7 @@ class Space(db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
-    productID = db.column(db.String(50))
+    productID = db.Column(db.String(50))
     name = db.Column(db.String(100))
     description = db.Column(db.Text)
     price = db.Column(db.Float)
