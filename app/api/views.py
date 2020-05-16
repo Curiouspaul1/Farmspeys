@@ -150,7 +150,7 @@ def getspaces():
 @login_required
 def addproducts(current_user):
     data = request.get_json()
-    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
+    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow(), productID=str(uuid4()))
     db.session.add(new_product)
     # fetch store 
     current_space = current_user.space
@@ -159,12 +159,14 @@ def addproducts(current_user):
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
 @api.route('/getallproducts', methods=['GET'])
-def getallproducts():
+@login_required
+def getallproducts(current_user):
     products = Product.query.all();
-    return jsonify(product_schema.dump(products)), 200
+    return jsonify(products_schema.dump(products)), 200
 
-@api.route('/updateproduct', methods=['POST'])
-def updateproduct(current_user):
+@api.route('/updateproduct/<product_id>', methods=['POST'])
+@login_required
+def updateproduct(current_user, product_id):
     data = request.get_json(force=True) # route accepts json
     product = Product.query.filter_by(productID=product_id).first()
 
