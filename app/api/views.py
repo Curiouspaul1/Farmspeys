@@ -114,6 +114,17 @@ def promote(current_user):
 
     return jsonify({'msg':'Successfully promoted user to seller'}),200
 
+@api.route('/promotetoadmin', methods=['PUT'])
+@login_required
+def promote_to_admin(current_user):
+    user_role = current_user.role
+    if user_role.has_permission(Permission.ADMIN):
+        return make_response(jsonify({'msg':f'User is admin already'}))
+    user_role.add_permission(Permission.ADMIN)
+    db.session.commit()
+
+    return make_response(jsonify({'msg':f'Sucessfuly promoted to Admin'}))
+
 
 # ================================== Space Handlers =================================== #
 
@@ -146,6 +157,8 @@ def getspaces():
     result = Space.query.all()
     return jsonify(spaces_schema.dump(result)),200
 
+# ========================================================== Products ============================================================
+
 @api.route('/addproduct',methods=['POST'])
 @login_required
 def addproducts(current_user):
@@ -158,15 +171,25 @@ def addproducts(current_user):
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
+# Admin only gets all products on this route
 @api.route('/getallproducts', methods=['GET'])
 @login_required
-def getallproducts(current_user):
-    products = Product.query.all();
-    return jsonify(products_schema.dump(products)), 200
+def get_all_products(current_user):
+    admin_user = current_user.role
+    if admin_user is not None and admin_user.has_permission(Permission.ADMIN):
+        products = Product.query.all()
+        return make_response(jsonify(products_schema.dump(products)), 200)
+    return make_response(jsonify({'msg':f'You lack the permission to do this!'}), 401)
+
+# A user associatd with a space gets the specified product
+@api.route('/getproduct/<product_id>', methods=['GET'])
+@login_required
+def get_product(current_user, product_id):
+    pass    
 
 @api.route('/updateproduct/<product_id>', methods=['POST'])
 @login_required
-def updateproduct(current_user, product_id):
+def update_product(current_user, product_id):
     data = request.get_json(force=True) # route accepts json
     product = Product.query.filter_by(productID=product_id).first()
 
@@ -176,14 +199,23 @@ def updateproduct(current_user, product_id):
     product.images = data['images']
     product.Instock = data['available_stock']
     product.discount = data['discount']
-    product.date_created = d.datetime.utcnow()
 
-    current_space = current_user.space
-    product.space = current_space
     db.session.commit()
     
-    return({'msg':f'Updated products successfully'}), 200
+    return make_response(jsonify({'msg':f'Updated products successfully'}), 200)
     
-#@api.route('/delete_product/<product_id>')
-#def delete_product(current_user,product_id)
+@api.route('/deleteproduct/<product_id>', methods=['DELETE'])
+@login_required
+def delete_product(current_user, product_id):
+    data = request.get_json(force=True)
+    product = Product.query.filter_by(productID=product_id).first()
 
+    index = 0
+    for i in product:
+        if i.productID == product_id:
+            del product[index]
+            db.session.delete(i)
+            db.session.commit()
+            return make_response(jsonify({'msg':f'i.name deleted successfully'}), 200)
+        index += 1
+    return make_response(jsonify({'error':f'No such product'}),401)
