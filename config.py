@@ -12,6 +12,7 @@ class Config:
     MAIL_USERNAME = os.environ.get('USERNAME')
     MAIL_PASSWORD = os.environ.get('PASSWORD')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    #FLASKY_ADMIN = 'admin@farmspeys.com'
 
     @staticmethod
     def init_app(app):

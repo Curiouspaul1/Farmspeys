@@ -1,7 +1,10 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
 from flask_cors import cross_origin
-from models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema, products_schema, product_schema
+from models import (
+    User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,
+    Cart,Product_cat,user_schema,users_schema,products_schema, product_schema
+)
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
 from app import bcrypt,db,ma,cors
@@ -90,6 +93,10 @@ def login():
     else:
         return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
 
+@api.route('/update-profile/publicId', methods=['GET', 'POST'])
+def update_profile(current_user, publicId):
+    pass
+
 @api.route('/getuser/<publicId>')   
 @login_required
 def getuser(current_user,publicId):
@@ -134,7 +141,7 @@ def newspace(current_user):
     if not current_user.role.has_permission(Permission.SELL):
         return jsonify({'error':'You don\'t have permission to perform such action'}),401
     data = request.get_json(force=True)
-    new_space = Space(store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
+    new_space = Space(spaceId=str(uuid4()), store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
     db.session.add(new_space)
     try:
         new_space.farmer = current_user
@@ -165,9 +172,15 @@ def addproducts(current_user):
     data = request.get_json()
     new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow(), productID=str(uuid4()))
     db.session.add(new_product)
-    # fetch store 
+
+    # fetch store
     current_space = current_user.space
+    if current_space is None:
+        return make_response(jsonify({'msg':'You should create a store before selling. No bystanders here'}),401)
     new_product.space = current_space
+    # get user's id
+    new_product.farmer = current_user
+
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
@@ -181,13 +194,31 @@ def get_all_products(current_user):
         return make_response(jsonify(products_schema.dump(products)), 200)
     return make_response(jsonify({'msg':f'You lack the permission to do this!'}), 401)
 
-# A user associatd with a space gets the specified product
-@api.route('/getproduct/<product_id>', methods=['GET'])
-@login_required
-def get_product(current_user, product_id):
-    pass    
 
-@api.route('/updateproduct/<product_id>', methods=['POST'])
+# A user associatd with a space gets the specified product
+@api.route('/getproduct/<space_id>/<product_id>', methods=['GET'])
+@login_required
+def get_product(current_user, space_id, product_id):
+    if current_user.space.spaceId == space_id:
+        space = Space.query.filter_by(spaceId='space_id').first()
+        if not space:
+            return make_response(jsonify({'msg':f'Not your space!'}), 401)
+        product = Product.query.filter_by(id='product_id').first()
+        print(product)
+        if not product:
+            return make_response(jsonify({'msg':f'Not your product!'}), 401)
+        return products.schema.jsonify(product), 200
+
+# gets all products for a particular user (non-admin)
+@api.route('/getproducts', methods=['GET'])
+@login_required
+def get_products(current_user):
+    products = current_user.product
+    if not products:
+        return make_response(jsonify({'msg':f'No product. Try adding a product!'}), 401)
+    return make_response(jsonify(products_schema.dump(products)), 200)
+
+@api.route('/updateproduct/<product_id>', methods=['PUT'])
 @login_required
 def update_product(current_user, product_id):
     data = request.get_json(force=True) # route accepts json
