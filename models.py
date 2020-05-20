@@ -35,7 +35,7 @@ class Permission:
     BUY = 1
     SELL = 2
     RATE = 4
-    ADMIN = 16user.role.permissions
+    ADMIN = user.role.permissions
 
 class Role(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
