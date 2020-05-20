@@ -93,18 +93,18 @@ def login():
     else:
         return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
 
-@api.route('/update-profile/publicId', methods=['GET', 'POST'])
+@api.route('/update-profile/publicId', methods=['PUT'])
 def update_profile(current_user, publicId):
     pass
 
-@api.route('/getuser/<publicId>')   
+@api.route('/getuser')   
 @login_required
-def getuser(current_user,publicId):
-    user = User.query.filter_by(userId=publicId).first()
-    if not user:
+def getuser(current_user):
+    #user = User.query.filter_by(userId=publicId).first()
+    if not current_user:
         return jsonify({'error':'No such user found'}),401
     
-    return user_schema.jsonify(user)
+    return user_schema.jsonify(current_user)
 
 @api.route('/getusers')
 @login_required
@@ -126,11 +126,12 @@ def promote(current_user):
 def promote_to_admin(current_user):
     user_role = current_user.role
     if user_role.has_permission(Permission.ADMIN):
-        return make_response(jsonify({'msg':f'User is admin already'}))
+        return make_response(jsonify({'msg':f'User is admin already'}), 401)
     user_role.add_permission(Permission.ADMIN)
     db.session.commit()
-
     return make_response(jsonify({'msg':f'Sucessfuly promoted to Admin'}))
+
+# route for admin to take SELL PERMISSION
 
 
 # ================================== Space Handlers =================================== #
@@ -185,14 +186,21 @@ def addproducts(current_user):
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
 # Admin only gets all products on this route
-@api.route('/getallproducts', methods=['GET'])
+@api.route('/admingetallproducts', methods=['GET'])
 @login_required
-def get_all_products(current_user):
+def admin_get_all_products(current_user):
     admin_user = current_user.role
     if admin_user is not None and admin_user.has_permission(Permission.ADMIN):
         products = Product.query.all()
         return make_response(jsonify(products_schema.dump(products)), 200)
     return make_response(jsonify({'msg':f'You lack the permission to do this!'}), 401)
+
+'''
+A user, regardless of being an admin should be able to query the db for all
+products. This would help when the frontend dev needs data to populate the
+index page
+'''
+#@api.route('/getallproducts')
 
 
 # A user associatd with a space gets the specified product
@@ -207,7 +215,7 @@ def get_product(current_user, space_id, product_id):
         print(product)
         if not product:
             return make_response(jsonify({'msg':f'Not your product!'}), 401)
-        return products.schema.jsonify(product), 200
+        return products.schema.jsonify(product), 200 
 
 # gets all products for a particular user (non-admin)
 @api.route('/getproducts', methods=['GET'])

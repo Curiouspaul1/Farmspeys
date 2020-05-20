@@ -21,7 +21,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG=True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_URI') or f"sqlite:///{basedir}/fdevdb_.sqlite"
-    FLASKY_ADMIN = os.environ.get('FLASK_ADMIN')
+    FLASKY_ADMIN = 'admin@farmspeys.com'
 
 class TestingConfig(Config):
     TESTING = True

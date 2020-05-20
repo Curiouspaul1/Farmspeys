@@ -22,10 +22,8 @@ class User(db.Model):
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         if self.role is None:
-            if self.email == current_app.config['FLASKY_ADMIN']:
-                truth = self.email == current_app.config['FLASKY_ADMIN']
-                print(truth)
-                self.role = Role.query.filter_by(name='ADMIN').first()
+            if self.email == 'admin@farmspeys.com':
+                self.role = Role.query.filter_by(permissions=0xff).first()
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
 
@@ -37,14 +35,14 @@ class Permission:
     BUY = 1
     SELL = 2
     RATE = 4
-    ADMIN = 16
+    ADMIN = 16user.role.permissions
 
 class Role(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
     name = db.Column(db.String(50))
     default = db.Column(db.Boolean,default=False,index=True)
     permissions = db.Column(db.Integer)
-    users = db.relationship('User',backref='role',uselist=False)
+    users = db.relationship('User',backref='role', lazy='dynamic')
 
     # sets permission for each instance to zero if it has "None" permission
     def __init__(self,**kwargs):
@@ -84,7 +82,7 @@ class Role(db.Model):
                 role.add_permission(perm)
 
             role.default = role.name == default # assigns the role as default if its name == the set default role in this method
-
+    
             db.session.add(role)
         db.session.commit()
     
@@ -163,7 +161,7 @@ class UserSchema(ma.ModelSchema):
         fields = (
             'id','email','username','userId','telephone','member_since',
             'lastLogin','role_id'
-                )
+        )
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
