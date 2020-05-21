@@ -93,6 +93,10 @@ def login():
     else:
         return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
 
+@api.route('/update-profile/publicId', methods=['GET', 'POST'])
+def update_profile(current_user, publicId):
+    pass
+
 @api.route('/getuser/<publicId>')   
 @login_required
 def getuser(current_user,publicId):
