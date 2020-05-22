@@ -15,7 +15,7 @@ class User(db.Model):
     cart = db.relationship('Cart',backref='buyer',uselist=False)
     reviews = db.relationship('Review',backref='customer')
     space = db.relationship('Space',backref='farmer',uselist=False)
-    product= db.relationship('Product', backref='farmer', uselist=True)
+    product= db.relationship('Product', backref='farmer')
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     orders = db.relationship('Order',backref='customer')
 
@@ -35,7 +35,7 @@ class Permission:
     BUY = 1
     SELL = 2
     RATE = 4
-    ADMIN = user.role.permissions
+    ADMIN = 16
 
 class Role(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
