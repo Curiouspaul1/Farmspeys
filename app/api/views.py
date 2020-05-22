@@ -133,7 +133,7 @@ def promote_to_admin(current_user):
     user_role = current_user.role
     if user_role.has_permission(Permission.ADMIN):
         return make_response(jsonify({'msg':f'User is admin already'}), 401)
-    user_role.add_permission(Permission.ADMIN)
+    user_role = Role.query.filter_by(name='ADMIN').first()
     db.session.commit()
     return make_response(jsonify({'msg':f'Sucessfuly promoted to Admin'}))
 
