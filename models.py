@@ -41,7 +41,7 @@ class Role(db.Model):
     name = db.Column(db.String(50))
     default = db.Column(db.Boolean,default=False,index=True)
     permissions = db.Column(db.Integer)
-    users = db.relationship('User',backref='role',uselist=False)
+    users = db.relationship('User',backref='role')
 
     # sets permission for each instance to zero if it has "None" permission
     def __init__(self,**kwargs):
