@@ -12,10 +12,11 @@ from flask_jwt_extended import (
     jwt_required,create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity,set_access_cookies,
-    set_refesh_cookies, unset_jwt_cookies
+    set_refresh_cookies, unset_jwt_cookies
 )
 
 from functools import wraps
+
 
 # ================================== User Handlers =================================== #
 
@@ -68,12 +69,12 @@ def login():
     if user:
         if bcrypt.check_password_hash(user.password,auth.password):
             # create tokens
-            access_token = create_access_token(identity=username)
-            refresh_token = create_refresh_token(identity=username)
+            access_token = create_access_token(identity=user.userId)
+            refresh_token = create_refresh_token(identity=user.userId)
             user.addlastLogin()
             resp = jsonify({'login':True})
             set_access_cookies(resp,access_token)
-            set_refesh_cookies(resp,refresh_token)
+            set_refresh_cookies(resp,refresh_token)
             return make_response(resp,200)
         else:
             resp = jsonify({'error':'Incorrect Password'})

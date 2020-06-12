@@ -12,8 +12,10 @@ class Config:
     MAIL_USERNAME = os.environ.get('USERNAME')
     MAIL_PASSWORD = os.environ.get('PASSWORD')
     JWT_TOKEN_LOCATION = 'cookies'
-    JWT_ACCESS_COOKIE_PATH = '/token/auth'
-    JWT_REFRESH_COOKIE_PATH = '/token/refresh'
+    JWT_ACCESS_COOKIE_PATH = '/api/token/auth'
+    JWT_REFRESH_COOKIE_PATH = '/api/token/refresh'
+    JWT_COOKIE_SECURE = False
+    JWT_COOKIE_CSRF_PROTECT = True
     JWT_SECRET_KEY = os.getenv('SECRET_KEY')
 
 
