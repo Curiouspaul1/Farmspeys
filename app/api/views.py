@@ -1,16 +1,20 @@
 from .import api
 from flask import request,jsonify,make_response,current_app
 from flask_cors import cross_origin
-from models import (
-    User,Role,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,
-    Cart,Product_cat,user_schema,users_schema,products_schema, product_schema
-)
+from models import User,Space,space_schema,Permission,spaces_schema,Space_cat,Product,Order,Review,Cart,Product_cat,user_schema,users_schema
 from app.extensions import emailcheck
 from sqlalchemy.exc import IntegrityError
 from app import bcrypt,db,ma,cors
 from uuid import UUID,uuid4
 import datetime as d
 import jwt, json
+from flask_jwt_extended import (
+    jwt_required,create_access_token,
+    jwt_refresh_token_required, create_refresh_token,
+    get_jwt_identity,set_access_cookies,
+    set_refesh_cookies, unset_jwt_cookies
+)
+
 from functools import wraps
 
 # ================================== User Handlers =================================== #
@@ -24,8 +28,12 @@ def login_required(f):
             token = request.headers['x-access-token']
             if not token:
                 return make_response(jsonify({'error':'Token is missing'})),401
+            #try:
             data = jwt.decode(token,current_app.config['SECRET_KEY'])
-  
+            #except:
+            #return make_response(jsonify({'error':'An error occurred while trying to decode token'})),500
+            
+            # fetch logged in user
             current_user = User.query.filter_by(userId=data['publicId']).first()
             
             return f(current_user,*args,**kwargs)
@@ -40,6 +48,8 @@ def register_user():
     data = request.get_json(force=True)
     phash = bcrypt.generate_password_hash(data["password"])
     new_user = User(name=data['name'],password=phash,member_since=d.datetime.utcnow(),userId=str(uuid4()))
+    if new_user.role == None:
+        new_user.role = Role.query.filter_by(default=True).first()
     db.session.add(new_user)
 
     if emailcheck(data['email']):
@@ -70,90 +80,84 @@ def register_user():
     return make_response(jsonify({'msg':'registration successful'}),200)
             
 
-@api.route('/login',methods=['GET'])
+@api.route('/token/auth',methods=['GET'])
 def login():
     auth = request.authorization
 
-    if not auth or not auth.username:   
-        return jsonify({'error':'Invalid auth details'}),401
-    
+    if not auth or not auth.username:
+        resp = jsonify({'error':'Invalid auth details'})
+        return resp,401
     user = User.query.filter_by(username=auth.username).first() or User.query.filter_by(email=auth.username).first()
     if user:
         if bcrypt.check_password_hash(user.password,auth.password):
-            token = jwt.encode({'publicId':user.userId,'exp':d.datetime.utcnow() + d.timedelta(minutes=30)},current_app.config['SECRET_KEY'])
+            # create tokens
+            access_token = create_access_token(identity=username)
+            refresh_token = create_refresh_token(identity=username)
             user.addlastLogin()
-            return make_response(jsonify({'token':token.decode('UTF-8')}),200)
+            resp = jsonify({'login':True})
+            set_access_cookies(resp,access_token)
+            set_refesh_cookies(resp,refresh_token)
+            return make_response(resp,200)
         else:
-            return jsonify({'error':'Incorrect password'}),401
+            resp = jsonify({'error':'Incorrect Password'})
+            return make_response(resp,401)
     else:
-        return make_response(jsonify({'error':'No such user found'}),401,{'WWW-Authenticate':'Basic realm="Login Required"'})
+        resp = jsonify({'error':'No such user found'})
+        return make_response(resp,404)
 
+@api.route('/token/refresh',methods=['POST'])
+@jwt_refresh_token_required
+def refresh_token():
+    # create new access-token
+    current_user = get_jwt_identity()
+    access_token = create_access_token(identity=current_user)
 
-@api.route('/updateprofile', methods=['PUT'])
-@login_required
-def update_profile(current_user):
-    print(current_user)
-    data = request.get_json(force=True)
-    current_user.name = data['name']
-    current_user.telephone = data['telephone']
-    current_user.email = data['email']
-    current_user.username = data['username']
-    db.session.commit()
-    return make_response(jsonify({'msg':f'Updated profile successfully'}), 200)
+    resp = jsonify({'refresh':True})
+    set_access_cookies(resp,access_token)
+    return make_response(resp,200)
 
+@api.route('/token/remove',methods=['POST'])
+def logout():
+    resp = jsonify({'logout':True})
+    unset_jwt_cookies(resp)
+    return make_response(resp,200)
 
-@api.route('/getuser')   
-@login_required
-def getuser(current_user):
-    if not current_user:
+@api.route('/getuser')
+@jwt_required
+def getuser():
+    user = User.query.filter_by(userId=get_jwt_identity()).first()
+    if not user:
         return jsonify({'error':'No such user found'}),401
-    return user_schema.jsonify(current_user)
-
+    
+    return user_schema.jsonify(user)
 
 @api.route('/getusers')
-@login_required
-def getusers(current_user):
+@jwt_required
+def getusers():
     users = User.query.all()
     return jsonify(users_schema.dump(users))
 
-
 @api.route('/promoteuser',methods=['PUT'])
-@login_required
-#@administrator
-def promote(current_user):
-    current_user.role = Role.query.filter_by(name='SELLER').first()
+@jwt_required
+def promote():
+    user = User.query.filter_by(userId=get_jwt_identity()).first()
+    user_role = user.role
+    user_role.add_permission(Permission.SELL) # adds seller permission
     db.session.commit()
+
     return jsonify({'msg':'Successfully promoted user to seller'}),200
-
-
-@api.route('/promotetoadmin', methods=['PUT'])
-@login_required
-#@administrator
-def promote_to_admin(current_user):
-    user_role = current_user.role
-    if user_role.has_permission(Permission.ADMIN):
-        return make_response(jsonify({'msg':f'User is admin already'}), 401)
-    user_role = Role.query.filter_by(name='ADMIN').first()
-    db.session.commit()
-    return make_response(jsonify({'msg':f'Sucessfuly promoted to Admin'}))
-
-# route for admin to take SELL PERMISSION
-@api.route('downgradeuser', methods=['PUT'])
-@login_required
-#@administrator
-def downgrade_user(current_user):
-    pass
 
 
 # ================================== Space Handlers =================================== #
 
 @api.route('/newspace',methods=['POST'])
-@login_required
-def newspace(current_user):
-    if not current_user.role.has_permission(Permission.SELL):
+@jwt_required
+def newspace():
+    user = User.query.filter_by(userId=get_jwt_identity()).first()
+    if not user.role.has_permission(Permission.SELL):
         return jsonify({'error':'You don\'t have permission to perform such action'}),401
     data = request.get_json(force=True)
-    new_space = Space(spaceId=str(uuid4()), store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
+    new_space = Space(store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
     db.session.add(new_space)
     try:
         new_space.farmer = current_user
@@ -164,7 +168,6 @@ def newspace(current_user):
         return jsonify({'error':'Store Name is already taken'}),401
     return jsonify({'msg':'New store created successfully!'}),200
 
-
 @api.route('/getspace/<spaceId>')
 def getspace(spaceId):
     result = Space.query.filter_by(id=spaceId).first()
@@ -172,98 +175,23 @@ def getspace(spaceId):
         return jsonify({'error':'No such store found'}),401
     return space_schema.jsonify(result),200
 
-
 @api.route('/getspaces')
 def getspaces():
     result = Space.query.all()
     return jsonify(spaces_schema.dump(result)),200
 
-# ========================================================== Products ============================================================
-
 @api.route('/addproduct',methods=['POST'])
-@login_required
-def addproducts(current_user):
+@jwt_required
+def addproducts():
     data = request.get_json()
-    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow(), productID=str(uuid4()))
+    new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
     db.session.add(new_product)
-
+    # fetch store 
     current_space = current_user.space
-    if current_space is None:
-        return make_response(jsonify({'msg':'You should create a store before selling. No bystanders here'}),401)
     new_product.space = current_space
-    new_product.farmer = current_user
-
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
 
+#@api.route('/delete_product/<product_id>')
+#def delete_product(current_user,product_id)
 
-@api.route('/admingetallproducts', methods=['GET'])
-@login_required
-def admin_get_all_products(current_user):
-    admin_user = current_user.role
-    if admin_user is not None and admin_user.has_permission(Permission.ADMIN):
-        products = Product.query.all()
-        return make_response(jsonify(products_schema.dump(products)), 200)
-    return make_response(jsonify({'msg':f'You lack the permission to do this!'}), 401)
-
-'''
-A user, regardless of being an admin should be able to query the db for all
-products. This would help when the frontend dev needs data to populate the
-index page
-'''
-#@api.route('/getallproducts')
-
-
-# A user associatd with a space gets the specified product
-@api.route('/getproduct/<space_id>/<product_id>', methods=['GET'])
-@login_required
-def get_product(current_user, space_id, product_id):
-    user_space = Space.query.filter_by(spaceId=space_id).first()
-    if not user_space:
-        return make_response(jsonify({'msg':f'Not your space!'}), 401)
-    else:
-        product = Product.query.filter_by(productID=product_id).first()
-        if not product:
-            return make_response(jsonify({'msg':f'Not your product!'}), 401)
-    return make_response(jsonify(product_schema.dump(product)), 200)
-
-
-# gets all products for a particular user (non-admin)
-@api.route('/getproducts', methods=['GET'])
-@login_required
-def get_products(current_user):
-    products = current_user.product
-    if not products:
-        return make_response(jsonify({'msg':f'No product. Try adding a product!'}), 401)
-    return make_response(jsonify(products_schema.dump(products)), 200)
-
-
-@api.route('/updateproduct/<product_id>', methods=['PUT'])
-@login_required
-def update_product(current_user, product_id):
-    data = request.get_json(force=True) # route accepts json
-    product = Product.query.filter_by(productID=product_id).first()
-    product.name = data['productName']
-    product.description = data['productDesc']
-    product.price = data['price']
-    product.images = data['images']
-    product.Instock = data['available_stock']
-    product.discount = data['discount']
-    db.session.commit()
-    return make_response(jsonify({'msg':f'Updated products successfully'}), 200)
-    
-
-@api.route('/deleteproduct/<product_id>', methods=['DELETE'])
-@login_required
-def delete_product(current_user, product_id):
-    data = request.get_json(force=True)
-    product = Product.query.filter_by(productID=product_id).first()
-    index = 0
-    for i in product:
-        if i.productID == product_id:
-            del product[index]
-            db.session.delete(i)
-            db.session.commit()
-            return make_response(jsonify({'msg':f'i.name deleted successfully'}), 200)
-        index += 1
-    return make_response(jsonify({'error':f'No such product'}),401)
