@@ -19,29 +19,6 @@ from functools import wraps
 
 # ================================== User Handlers =================================== #
 
-# authorization handler
-def login_required(f):
-    @wraps(f)
-    def endpoint(*args,**kwargs):
-        token = None
-        if 'x-access-token' in request.headers:
-            token = request.headers['x-access-token']
-            if not token:
-                return make_response(jsonify({'error':'Token is missing'})),401
-            #try:
-            data = jwt.decode(token,current_app.config['SECRET_KEY'])
-            #except:
-            #return make_response(jsonify({'error':'An error occurred while trying to decode token'})),500
-            
-            # fetch logged in user
-            current_user = User.query.filter_by(userId=data['publicId']).first()
-            
-            return f(current_user,*args,**kwargs)
-        else:
-            return make_response(jsonify({'error':'Token header not found'})),401
-    return endpoint
-
-
 @api.route("/createaccount",methods=['POST'])
 #@cross_origin()
 def register_user():
@@ -160,7 +137,7 @@ def newspace():
     new_space = Space(store_name=data['storeName'],description=data['description'],telephone=data['storeTel'],email=data['storeEmail'],farm_address=data['farmAddress'],logo=data['logoUrl'])
     db.session.add(new_space)
     try:
-        new_space.farmer = current_user
+        new_space.farmer = user
         db.session.flush()
         db.session.commit()
     except IntegrityError:
@@ -183,11 +160,12 @@ def getspaces():
 @api.route('/addproduct',methods=['POST'])
 @jwt_required
 def addproducts():
+    user = User.query.filter_by(userId=get_jwt_identity()).first()
     data = request.get_json()
     new_product = Product(name=data['productName'],description=data['productDesc'],sale_unit=data['sale_unit'],price=data['price'],images=data['images'],Instock=data['available_stock'],discount=data['discount'],date_created=d.datetime.utcnow())
     db.session.add(new_product)
     # fetch store 
-    current_space = current_user.space
+    current_space = user.space
     new_product.space = current_space
     db.session.commit()
     return jsonify({'msg':f'Added {new_product.name} successfully'}),200
