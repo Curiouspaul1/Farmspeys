@@ -15,6 +15,7 @@ class User(db.Model):
     cart = db.relationship('Cart',backref='buyer',uselist=False)
     reviews = db.relationship('Review',backref='customer')
     space = db.relationship('Space',backref='farmer',uselist=False)
+    product= db.relationship('Product', backref='farmer')
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     orders = db.relationship('Order',backref='customer')
 
@@ -41,7 +42,7 @@ class Role(db.Model):
     name = db.Column(db.String(50))
     default = db.Column(db.Boolean,default=False,index=True)
     permissions = db.Column(db.Integer)
-    users = db.relationship('User',backref='role')
+    users = db.relationship('User',backref='role', lazy='dynamic')
 
     # sets permission for each instance to zero if it has "None" permission
     def __init__(self,**kwargs):
@@ -55,7 +56,6 @@ class Role(db.Model):
     def add_permission(self,perm):
         if not self.has_permission(perm):
            self.permissions += perm
-
 
     def remove_permission(self,perm):
         if self.has_permission(perm):
@@ -82,12 +82,13 @@ class Role(db.Model):
                 role.add_permission(perm)
 
             role.default = role.name == default # assigns the role as default if its name == the set default role in this method
-
+    
             db.session.add(role)
         db.session.commit()
     
 class Space(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
+    spaceId = db.Column(db.String(50))
     store_name = db.Column(db.String(100),unique=True)
     description = db.Column(db.Text)
     telephone = db.Column(db.String(50))
@@ -103,6 +104,7 @@ class Space(db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer,nullable=False,primary_key=True)
+    productID = db.Column(db.String(50))
     name = db.Column(db.String(100))
     description = db.Column(db.Text)
     price = db.Column(db.Float)
@@ -113,6 +115,7 @@ class Product(db.Model):
     date_created = db.Column(db.DateTime())
     reviews = db.relationship('Review',backref='product')
     space_id = db.Column(db.Integer,db.ForeignKey('space.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     product_cat_id = db.Column(db.Integer,db.ForeignKey('product_cat.id'))
 
 class Product_cat(db.Model):
@@ -155,7 +158,10 @@ class Review(db.Model):
 class UserSchema(ma.ModelSchema):
     class Meta:
         model = User
-        fields = ('id','email','username','userId','telephone','member_since','lastLogin','role_id')
+        fields = (
+            'id','email','username','userId','telephone','member_since',
+            'lastLogin','role_id'
+        )
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
@@ -163,7 +169,21 @@ users_schema = UserSchema(many=True)
 class SpaceSchema(ma.ModelSchema):
     class Meta:
         model = Space
-        fields = ('id','email','username','userId','telephone','member_since','lastLogin','role_id')
+        fields = (
+            'spaceId','id','email','username','userId','telephone','member_since',
+            'lastLogin','role_id'
+            )
 
 space_schema = SpaceSchema()
 spaces_schema = SpaceSchema(many=True)
+
+class ProductSchema(ma.ModelSchema):
+    class Meta:
+        model = Product
+        fields = (
+            'id', 'productID', 'name', 'description', 'price', 'images',
+            'Instock', 'discount','date_created', 'space_id', 'user_id'
+        )
+
+product_schema = ProductSchema()
+products_schema  = ProductSchema(many=True)
